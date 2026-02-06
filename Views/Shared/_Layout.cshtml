@@ -13,7 +13,7 @@
         <nav class="cp-nav">
             <div class="container d-flex align-items-center justify-content-between">
                 <a asp-controller="Home" asp-action="Index" class="cp-brand">Carpet Progress</a>
-                <a asp-controller="Progress" asp-action="History" class="cp-nav-link">History</a>
+                <a asp-controller="Progress" asp-action="History" class="cp-nav-pill">History</a>
             </div>
         </nav>
     </header>
@@ -22,9 +22,7 @@
         @RenderBody()
     </main>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

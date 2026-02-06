@@ -4,7 +4,7 @@
 }
 
 <div class="cp-card">
-    <h1 class="cp-title">Scan Carpet Progress</h1>
+    <h1 class="cp-title">Scan Carpet</h1>
 
     @if (ViewData.ModelState.ErrorCount > 0)
     {
@@ -25,59 +25,80 @@
 
         <div class="mb-3">
             <label class="cp-label">Barcode</label>
-            <div id="barcodeRow" class="cp-barcode-row">
+            <div class="cp-barcode-row">
                 <input name="Barcode" class="cp-input" id="barcodeInput" placeholder="Scan or type barcode" inputmode="text" autocomplete="off" />
                 <button type="button" id="lookupBtn" class="cp-lookup-btn">Lookup</button>
             </div>
-            <div id="barcodeError" class="cp-barcode-error d-none">Barcode not found in ERP</div>
-            <div id="confirmedBar" class="cp-confirmed-bar d-none">
-                <span class="cp-confirmed-badge">ERP Confirmed</span>
-                <a href="#" id="changeLink" class="cp-change-link">Change barcode</a>
+            <div id="barcodeError" class="cp-barcode-error d-none">Barcode not found</div>
+        </div>
+
+        <div id="erpCard" class="cp-erp d-none">
+            <div class="cp-erp-top">
+                <div>
+                    <div class="cp-erp-barcode" id="erpBarcode"></div>
+                    <div class="cp-erp-orno" id="erpOrno"></div>
+                </div>
+                <span class="cp-erp-badge" id="erpType"></span>
+            </div>
+            <div class="cp-erp-info">
+                <span id="erpDesign"></span>
+                <span id="erpCnv"></span>
+            </div>
+            <div class="cp-erp-actions">
+                <a href="#" id="detailLink" class="cp-link-detail">View details</a>
+                <a href="#" id="changeLink" class="cp-link-change">Change</a>
             </div>
         </div>
+
+        <div id="progressTimeline" class="cp-timeline d-none"></div>
 
         <hr class="cp-divider" />
 
         <input type="file" name="Image" class="cp-file-input" id="fileInput" accept="image/*" />
 
         <div id="placeholderArea" class="cp-placeholder">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            <span>Look up a barcode to scan photo</span>
+            Look up a barcode first
         </div>
 
-        <div id="resultArea" class="d-none">
-            <div id="previewArea" class="mb-3">
-                <div class="cp-preview-wrap">
-                    <img id="previewImg" class="cp-preview-img" alt="Captured photo" />
-                    <button type="button" id="retakeBtn" class="cp-retake">Retake</button>
-                </div>
-            </div>
-            <div id="photoStatus" class="cp-photo-status cp-photo-status-ok">Photo captured</div>
-            <button type="submit" id="analyzeBtn" class="cp-submit" disabled>Analyze</button>
-        </div>
-
-        <div id="photoStatusEmpty" class="cp-photo-status cp-photo-status-none">No photo</div>
-
-    </form>
-</div>
-
-<div class="modal fade" id="erpModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content cp-modal">
-            <div id="erpModalHeader" class="cp-modal-head"></div>
-            <div class="modal-body cp-modal-body" id="erpModalBody"></div>
-            <div class="cp-modal-foot">
-                <button type="button" id="scanPhotoBtn" class="cp-scan-btn">
+        <div id="cameraSection" class="d-none">
+            <div id="cameraBtnArea">
+                <button type="button" id="openCamBtn" class="cp-cam-open">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                         <circle cx="12" cy="13" r="4"/>
                     </svg>
-                    Scan Photo
+                    Open Camera
                 </button>
             </div>
+            <div id="previewArea" class="d-none">
+                <div class="cp-preview-wrap">
+                    <img id="previewImg" class="cp-preview-img" alt="Captured photo" />
+                    <button type="button" id="retakeBtn" class="cp-retake">Retake</button>
+                </div>
+                <div class="cp-photo-status">Photo captured</div>
+            </div>
+        </div>
+
+    </form>
+</div>
+
+<div id="actionBar" class="cp-action-bar d-none">
+    <button type="submit" form="analyzeForm" id="analyzeBtn" class="cp-submit" disabled>Analyze</button>
+</div>
+
+<div class="modal fade cp-sheet" id="detailSheet" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="cp-sheet-handle"></div>
+            <div class="cp-sheet-head">
+                <span class="cp-sheet-title">ERP Details</span>
+                <button type="button" class="cp-sheet-close" data-bs-dismiss="modal">&times;</button>
+            </div>
+            <div class="cp-sheet-body" id="sheetBody"></div>
         </div>
     </div>
 </div>
@@ -103,44 +124,207 @@
         var lookupBtn = document.getElementById('lookupBtn');
         var analyzeBtn = document.getElementById('analyzeBtn');
         var barcodeError = document.getElementById('barcodeError');
-        var confirmedBar = document.getElementById('confirmedBar');
+        var erpCard = document.getElementById('erpCard');
+        var erpBarcode = document.getElementById('erpBarcode');
+        var erpOrno = document.getElementById('erpOrno');
+        var erpType = document.getElementById('erpType');
+        var erpDesign = document.getElementById('erpDesign');
+        var erpCnv = document.getElementById('erpCnv');
+        var detailLink = document.getElementById('detailLink');
         var changeLink = document.getElementById('changeLink');
         var placeholderArea = document.getElementById('placeholderArea');
-        var resultArea = document.getElementById('resultArea');
+        var cameraSection = document.getElementById('cameraSection');
+        var cameraBtnArea = document.getElementById('cameraBtnArea');
+        var previewArea = document.getElementById('previewArea');
         var previewImg = document.getElementById('previewImg');
         var retakeBtn = document.getElementById('retakeBtn');
-        var photoStatus = document.getElementById('photoStatus');
-        var photoStatusEmpty = document.getElementById('photoStatusEmpty');
-        var erpModalHeader = document.getElementById('erpModalHeader');
-        var erpModalBody = document.getElementById('erpModalBody');
-        var erpModalEl = document.getElementById('erpModal');
-        var erpModal = new bootstrap.Modal(erpModalEl);
-        var scanPhotoBtn = document.getElementById('scanPhotoBtn');
+        var actionBar = document.getElementById('actionBar');
+        var sheetBody = document.getElementById('sheetBody');
+        var detailSheetEl = document.getElementById('detailSheet');
+        var detailSheet = new bootstrap.Modal(detailSheetEl);
+        var openCamBtn = document.getElementById('openCamBtn');
         var camModal = document.getElementById('camModal');
         var camVideo = document.getElementById('camVideo');
         var camCapture = document.getElementById('camCapture');
         var camClose = document.getElementById('camClose');
         var camFrame = document.getElementById('camFrame');
         var camCanvas = document.getElementById('camCanvas');
+        var progressTimeline = document.getElementById('progressTimeline');
         var objectUrl = null;
-        var erpConfirmed = false;
         var camStream = null;
+        var erpConfirmed = false;
+
+        function v(val) {
+            return (val !== null && val !== undefined && val !== '') ? val : '-';
+        }
+
+        function fmtNum(val) {
+            if (val === null || val === undefined) return '-';
+            return parseFloat(val).toFixed(2);
+        }
+
+        function fmtDate(val) {
+            if (!val) return '-';
+            var d = new Date(val);
+            if (isNaN(d)) return val;
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function fmtPercent(val) {
+            return parseFloat(val).toFixed(1);
+        }
 
         function updateBtn() {
             analyzeBtn.disabled = !(erpConfirmed && barcodeInput.value.trim() && fileInput.files.length > 0);
         }
 
-        function showCapturedState() {
-            placeholderArea.classList.add('d-none');
-            resultArea.classList.remove('d-none');
-            photoStatusEmpty.classList.add('d-none');
-            photoStatus.classList.remove('d-none');
-            erpConfirmed = true;
+        function formatProgressDate(dateStr) {
+            var parts = dateStr.split('-');
+            var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            return ('0' + d.getDate()).slice(-2) + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+        }
+
+        function formatTime(isoStr) {
+            var d = new Date(isoStr);
+            return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+        }
+
+        function loadTimeline(barcode) {
+            progressTimeline.innerHTML = '<div class="cp-tl-loading">Loading...</div>';
+            progressTimeline.classList.remove('d-none');
+
+            fetch('/api/progress/' + encodeURIComponent(barcode))
+                .then(function (res) { return res.json(); })
+                .then(function (logs) {
+                    renderTimeline(logs, barcode);
+                })
+                .catch(function () {
+                    progressTimeline.innerHTML = '';
+                    progressTimeline.classList.add('d-none');
+                });
+        }
+
+        function renderTimeline(logs, barcode) {
+            if (!logs || logs.length === 0) {
+                progressTimeline.innerHTML =
+                    '<div class="cp-tl-header">' +
+                        '<span class="cp-tl-title">Work Progress</span>' +
+                    '</div>' +
+                    '<div class="cp-tl-empty">' +
+                        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+                            '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' +
+                        '</svg>' +
+                        '<span>No progress logs yet</span>' +
+                    '</div>';
+                return;
+            }
+
+            var grouped = {};
+            var dateOrder = [];
+            for (var i = 0; i < logs.length; i++) {
+                var key = logs[i].progressDate;
+                if (!grouped[key]) {
+                    grouped[key] = [];
+                    dateOrder.push(key);
+                }
+                grouped[key].push(logs[i]);
+            }
+
+            var html =
+                '<div class="cp-tl-header">' +
+                    '<span class="cp-tl-title">Work Progress</span>' +
+                    '<span class="cp-tl-count">' + logs.length + ' log' + (logs.length !== 1 ? 's' : '') + '</span>' +
+                    '<a href="/WorkProgress/' + encodeURIComponent(barcode) + '" class="cp-tl-viewall">View all</a>' +
+                '</div>' +
+                '<div class="cp-tl-scroll">';
+
+            for (var d = 0; d < dateOrder.length; d++) {
+                var dateKey = dateOrder[d];
+                var entries = grouped[dateKey];
+                html += '<div class="hp-date-section">' +
+                    '<div class="hp-date-header">' +
+                        '<span class="hp-date-text">' + formatProgressDate(dateKey) + '</span>' +
+                        '<span class="hp-date-badge">' + entries.length + '</span>' +
+                    '</div>';
+
+                for (var j = 0; j < entries.length; j++) {
+                    var log = entries[j];
+                    html += '<div class="hp-card">' +
+                        '<div class="hp-card-top">' +
+                            '<span class="hp-time">' + formatTime(log.createdAt) + '</span>' +
+                            '<span class="hp-pill hp-pill-total">' + fmtPercent(log.totalPercent) + '%</span>' +
+                        '</div>' +
+                        '<div class="hp-pills">' +
+                            '<span class="hp-pill hp-pill-normal">Normal ' + fmtPercent(log.normalPercent) + '%</span>' +
+                            '<span class="hp-pill hp-pill-ot">OT ' + fmtPercent(log.otPercent) + '%</span>' +
+                        '</div>';
+
+                    if (log.imagePath) {
+                        html += '<a href="' + log.imagePath + '" target="_blank" class="hp-photo-btn">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                                '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>' +
+                                '<circle cx="8.5" cy="8.5" r="1.5"/>' +
+                                '<polyline points="21 15 16 10 5 21"/>' +
+                            '</svg>' +
+                            'View Photo' +
+                        '</a>';
+                    }
+
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+
+            html += '</div>';
+            progressTimeline.innerHTML = html;
+        }
+
+        function showErpCard(item) {
+            erpBarcode.textContent = v(item.barcodeNo);
+            erpOrno.textContent = 'Order: ' + v(item.orno);
+            erpDesign.textContent = v(item.designName);
+            var cnvText = v(item.cnvId);
+            if (item.cnvDesc) cnvText += ' \u2014 ' + item.cnvDesc;
+            erpCnv.textContent = cnvText;
+
+            var typeVal = (item.orderType || '').toLowerCase();
+            erpType.textContent = item.orderType || '-';
+            erpType.className = 'cp-erp-badge ' + (typeVal === 'order' ? 'cp-erp-badge-order' : 'cp-erp-badge-sample');
+
+            buildSheetDetails(item);
+
+            erpCard.classList.remove('d-none');
             barcodeInput.readOnly = true;
             barcodeInput.classList.add('cp-input-locked');
             lookupBtn.classList.add('d-none');
-            confirmedBar.classList.remove('d-none');
+            placeholderArea.classList.add('d-none');
+            cameraSection.classList.remove('d-none');
+            erpConfirmed = true;
             updateBtn();
+
+            loadTimeline(item.barcodeNo);
+        }
+
+        function buildSheetDetails(item) {
+            sheetBody.innerHTML =
+                '<div class="cp-kv-grid">' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Barcode</span><span class="cp-kv-value">' + v(item.barcodeNo) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Order No</span><span class="cp-kv-value">' + v(item.orno) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Design</span><span class="cp-kv-value">' + v(item.designName) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Type</span><span class="cp-kv-value">' + v(item.orderType) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Cnv ID</span><span class="cp-kv-value">' + v(item.cnvId) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Cnv Desc</span><span class="cp-kv-value">' + v(item.cnvDesc) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">As Plan</span><span class="cp-kv-value">' + v(item.asPlan) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">List No</span><span class="cp-kv-value">' + v(item.listNo) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Item No</span><span class="cp-kv-value">' + v(item.itemNo) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Width</span><span class="cp-kv-value">' + fmtNum(item.width) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Length</span><span class="cp-kv-value">' + fmtNum(item.length) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">SQM</span><span class="cp-kv-value">' + fmtNum(item.sqm) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Qty</span><span class="cp-kv-value">' + fmtNum(item.qty) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Synced</span><span class="cp-kv-value">' + fmtDate(item.syncedAt) + '</span></div>' +
+                '</div>';
         }
 
         function resetAll() {
@@ -149,12 +333,15 @@
             barcodeInput.classList.remove('cp-input-locked');
             barcodeInput.value = '';
             lookupBtn.classList.remove('d-none');
-            confirmedBar.classList.add('d-none');
             barcodeError.classList.add('d-none');
-            resultArea.classList.add('d-none');
+            erpCard.classList.add('d-none');
+            cameraSection.classList.add('d-none');
+            cameraBtnArea.classList.remove('d-none');
+            previewArea.classList.add('d-none');
             placeholderArea.classList.remove('d-none');
-            photoStatusEmpty.classList.remove('d-none');
-            photoStatus.classList.add('d-none');
+            actionBar.classList.add('d-none');
+            progressTimeline.innerHTML = '';
+            progressTimeline.classList.add('d-none');
             if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
             clearFileInput();
             previewImg.src = '';
@@ -174,8 +361,15 @@
             fileInput.files = dt.files;
         }
 
+        function showPreview(url) {
+            previewImg.src = url;
+            cameraBtnArea.classList.add('d-none');
+            previewArea.classList.remove('d-none');
+            actionBar.classList.remove('d-none');
+            updateBtn();
+        }
+
         function openCamera() {
-            erpModal.hide();
             camModal.classList.remove('d-none');
             navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -204,12 +398,8 @@
             var vh = camVideo.videoHeight;
             if (!vw || !vh) return;
 
-            var frameEl = camFrame;
-            var frameRect = frameEl.getBoundingClientRect();
+            var frameRect = camFrame.getBoundingClientRect();
             var videoRect = camVideo.getBoundingClientRect();
-
-            var scaleX = vw / videoRect.width;
-            var scaleY = vh / videoRect.height;
 
             var coverScale = Math.max(videoRect.width / vw, videoRect.height / vh);
             var renderedW = vw * coverScale;
@@ -217,15 +407,10 @@
             var offsetX = (renderedW - videoRect.width) / 2;
             var offsetY = (renderedH - videoRect.height) / 2;
 
-            var cropX = (frameRect.left - videoRect.left + offsetX) / coverScale;
-            var cropY = (frameRect.top - videoRect.top + offsetY) / coverScale;
-            var cropW = frameRect.width / coverScale;
-            var cropH = frameRect.height / coverScale;
-
-            cropX = Math.max(0, Math.round(cropX));
-            cropY = Math.max(0, Math.round(cropY));
-            cropW = Math.min(Math.round(cropW), vw - cropX);
-            cropH = Math.min(Math.round(cropH), vh - cropY);
+            var cropX = Math.max(0, Math.round((frameRect.left - videoRect.left + offsetX) / coverScale));
+            var cropY = Math.max(0, Math.round((frameRect.top - videoRect.top + offsetY) / coverScale));
+            var cropW = Math.min(Math.round(frameRect.width / coverScale), vw - cropX);
+            var cropH = Math.min(Math.round(frameRect.height / coverScale), vh - cropY);
 
             camCanvas.width = cropW;
             camCanvas.height = cropH;
@@ -238,58 +423,8 @@
                 assignFileToInput(blob);
                 if (objectUrl) URL.revokeObjectURL(objectUrl);
                 objectUrl = URL.createObjectURL(blob);
-                previewImg.src = objectUrl;
-                showCapturedState();
+                showPreview(objectUrl);
             }, 'image/jpeg', 0.92);
-        }
-
-        function fmtDate(val) {
-            if (!val) return '-';
-            var d = new Date(val);
-            if (isNaN(d)) return val;
-            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-
-        function fmtNum(val) {
-            if (val === null || val === undefined) return '-';
-            return parseFloat(val).toFixed(2);
-        }
-
-        function v(val) {
-            return (val !== null && val !== undefined && val !== '') ? val : '-';
-        }
-
-        function buildModal(item) {
-            erpModalHeader.innerHTML =
-                '<div class="cp-modal-barcode">' + v(item.barcodeNo) + '</div>' +
-                '<div class="cp-modal-orno">Order: ' + v(item.orno) + '</div>';
-
-            var html =
-                '<div class="cp-kv-grid">' +
-                    '<div class="cp-kv"><span class="cp-kv-label">Design</span><span class="cp-kv-value">' + v(item.designName) + '</span></div>' +
-                    '<div class="cp-kv"><span class="cp-kv-label">Type</span><span class="cp-kv-value">' + v(item.orderType) + '</span></div>' +
-                    '<div class="cp-kv"><span class="cp-kv-label">Cnv ID</span><span class="cp-kv-value">' + v(item.cnvId) + '</span></div>' +
-                    '<div class="cp-kv"><span class="cp-kv-label">Cnv Desc</span><span class="cp-kv-value">' + v(item.cnvDesc) + '</span></div>' +
-                '</div>' +
-                '<div class="cp-detail-toggle">' +
-                    '<a data-bs-toggle="collapse" href="#moreDetails" role="button" aria-expanded="false" aria-controls="moreDetails" class="cp-detail-link">' +
-                        'More details <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>' +
-                    '</a>' +
-                '</div>' +
-                '<div class="collapse" id="moreDetails">' +
-                    '<div class="cp-detail-grid">' +
-                        '<div class="cp-kv-sm"><span class="cp-kv-label">As Plan</span><span>' + v(item.asPlan) + '</span></div>' +
-                        '<div class="cp-kv-sm"><span class="cp-kv-label">List No</span><span>' + v(item.listNo) + '</span></div>' +
-                        '<div class="cp-kv-sm"><span class="cp-kv-label">Item No</span><span>' + v(item.itemNo) + '</span></div>' +
-                        '<div class="cp-kv-sm"><span class="cp-kv-label">Width</span><span>' + fmtNum(item.width) + '</span></div>' +
-                        '<div class="cp-kv-sm"><span class="cp-kv-label">Length</span><span>' + fmtNum(item.length) + '</span></div>' +
-                        '<div class="cp-kv-sm"><span class="cp-kv-label">SQM</span><span>' + fmtNum(item.sqm) + '</span></div>' +
-                        '<div class="cp-kv-sm"><span class="cp-kv-label">Qty</span><span>' + fmtNum(item.qty) + '</span></div>' +
-                        '<div class="cp-kv-sm"><span class="cp-kv-label">Synced</span><span>' + fmtDate(item.syncedAt) + '</span></div>' +
-                    '</div>' +
-                '</div>';
-
-            erpModalBody.innerHTML = html;
         }
 
         function lookupBarcode() {
@@ -311,43 +446,41 @@
                         barcodeError.classList.remove('d-none');
                         return;
                     }
-                    buildModal(data);
-                    erpModal.show();
+                    showErpCard(data);
                 });
         }
 
-        scanPhotoBtn.addEventListener('click', openCamera);
+        openCamBtn.addEventListener('click', openCamera);
 
         fileInput.addEventListener('change', function () {
             if (!fileInput.files.length) return;
             if (objectUrl) URL.revokeObjectURL(objectUrl);
             objectUrl = URL.createObjectURL(fileInput.files[0]);
-            previewImg.src = objectUrl;
-            showCapturedState();
+            showPreview(objectUrl);
         });
 
         camCapture.addEventListener('click', captureFrame);
 
-        camClose.addEventListener('click', function () {
-            closeCamera();
-            erpModal.show();
-        });
+        camClose.addEventListener('click', closeCamera);
 
         retakeBtn.addEventListener('click', function () {
             if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
             clearFileInput();
             previewImg.src = '';
-            resultArea.classList.add('d-none');
-            photoStatus.classList.add('d-none');
-            photoStatusEmpty.classList.remove('d-none');
-            placeholderArea.classList.remove('d-none');
+            previewArea.classList.add('d-none');
+            cameraBtnArea.classList.remove('d-none');
+            actionBar.classList.add('d-none');
             updateBtn();
-            openCamera();
         });
 
         changeLink.addEventListener('click', function (e) {
             e.preventDefault();
             resetAll();
+        });
+
+        detailLink.addEventListener('click', function (e) {
+            e.preventDefault();
+            detailSheet.show();
         });
 
         lookupBtn.addEventListener('click', lookupBarcode);

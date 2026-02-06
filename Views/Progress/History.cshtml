@@ -1,80 +1,95 @@
-@model HistoryVm
+@model HistoryIndexVm
 @{
     ViewData["Title"] = "History";
 }
 
-<div class="cp-tl">
-    <h1 class="cp-title">Progress History</h1>
+<div class="history-page">
+    <div class="hp-index-header">
+        <h1 class="hp-heading">Progress History</h1>
 
-    <form method="get" asp-controller="Progress" asp-action="History" class="cp-tl-filter">
-        <input type="text" name="barcode" value="@Model.BarcodeFilter" class="cp-input" placeholder="Filter by barcode" />
-        <button type="submit" class="cp-tl-filter-btn">Filter</button>
-        @if (!string.IsNullOrWhiteSpace(Model.BarcodeFilter))
-        {
-            <a asp-controller="Progress" asp-action="History" class="cp-tl-clear">Clear</a>
-        }
-    </form>
+        <form method="get" asp-controller="Progress" asp-action="History" class="hp-filter">
+            <div class="hp-filter-row">
+                <input type="text" name="q" value="@Model.Query"
+                       class="cp-input hp-filter-input" placeholder="Search order no or barcode..." />
+                <button type="submit" class="hp-filter-btn">Go</button>
+                @if (!string.IsNullOrWhiteSpace(Model.Query))
+                {
+                    <a asp-controller="Progress" asp-action="History" class="hp-clear-btn">Clear</a>
+                }
+            </div>
+        </form>
+    </div>
 
-    @if (Model.Logs.Count == 0)
+    @if (Model.Items.Count == 0)
     {
-        <div class="cp-tl-empty">No records found.</div>
+        <div class="hp-empty">
+            @if (!string.IsNullOrWhiteSpace(Model.Query))
+            {
+                <div class="hp-empty-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </div>
+                <div class="hp-empty-title">No results</div>
+                <div class="hp-empty-sub">Nothing matches <strong>@Model.Query</strong></div>
+            }
+            else
+            {
+                <div class="hp-empty-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                </div>
+                <div class="hp-empty-title">No ERP items found</div>
+                <div class="hp-empty-sub">Sync barcode data from ERP to get started</div>
+            }
+        </div>
     }
     else
     {
-        string? currentDate = null;
-        @foreach (var log in Model.Logs)
-        {
-            var dateStr = log.ProgressDate.ToString("yyyy-MM-dd");
-            if (dateStr != currentDate)
-            {
-                currentDate = dateStr;
-                <div class="cp-tl-date">@log.ProgressDate.ToString("dd MMM yyyy")</div>
-            }
-            <div class="cp-tl-entry">
-                <div class="cp-tl-rail">
-                    <div class="cp-tl-dot"></div>
-                    <div class="cp-tl-line"></div>
-                </div>
-                <div class="cp-tl-body">
-                    <div class="cp-tl-time">@log.CreatedAt.ToString("HH:mm")</div>
-                    @if (string.IsNullOrWhiteSpace(Model.BarcodeFilter))
-                    {
-                        <div class="cp-tl-barcode">@log.Barcode</div>
-                    }
-                    <div class="cp-tl-stats">
-                        <div class="cp-tl-stat">
-                            <span class="cp-tl-stat-label">Normal</span>
-                            <span class="cp-tl-stat-value">@log.NormalPercent.ToString("F2")%</span>
-                        </div>
-                        <div class="cp-tl-stat">
-                            <span class="cp-tl-stat-label">OT</span>
-                            <span class="cp-tl-stat-value">@log.OtPercent.ToString("F2")%</span>
-                        </div>
-                        <div class="cp-tl-stat cp-tl-stat-total">
-                            <span class="cp-tl-stat-label">Total</span>
-                            <span class="cp-tl-stat-value">@log.TotalPercent.ToString("F2")%</span>
-                        </div>
-                    </div>
-                    <a href="@log.ImagePath" target="_blank" class="cp-tl-photo">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                        View photo
-                    </a>
-                </div>
-            </div>
-        }
-    }
+        <div class="hp-summary">
+            <strong>@Model.Items.Count</strong> item@(Model.Items.Count != 1 ? "s" : "")@(!string.IsNullOrWhiteSpace(Model.Query) ? $" matching \"{Model.Query}\"" : "")
+        </div>
 
-    <div class="cp-tl-bottom">
-        <a asp-controller="Home" asp-action="Index" class="cp-scan-btn" style="display:inline-flex;width:auto;padding:0.7rem 1.5rem;font-size:0.92rem;border-radius:10px;text-decoration:none;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            New Scan
-        </a>
-    </div>
+        <div class="hp-barcode-list">
+            @foreach (var item in Model.Items)
+            {
+                var typeLower = item.OrderType?.Trim().ToLowerInvariant();
+                var badgeClass = typeLower == "sample" ? "cp-erp-badge-sample" : "cp-erp-badge-order";
+
+                <a href="/WorkProgress/@Uri.EscapeDataString(item.Barcode)" class="hp-bc-card">
+                    <div class="hp-bc-top">
+                        <div class="hp-bc-primary">
+                            <span class="hp-bc-order">@item.OrderNo</span>
+                            @if (!string.IsNullOrWhiteSpace(item.DesignName))
+                            {
+                                <span class="hp-bc-design">@item.DesignName</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(item.OrderType))
+                        {
+                            <span class="cp-erp-badge @badgeClass">@item.OrderType.Trim()</span>
+                        }
+                    </div>
+                    <div class="hp-bc-barcode">@item.Barcode</div>
+                    <div class="hp-bc-meta">
+                        @if (item.LogCount > 0)
+                        {
+                            <span>@item.LogCount log@(item.LogCount != 1 ? "s" : "")</span>
+                            <span class="hp-pill hp-pill-total">@item.LatestTotalPercent!.Value.ToString("F1")%</span>
+                            <span>@item.LatestCreatedAt!.Value.ToString("dd MMM HH:mm")</span>
+                        }
+                        else
+                        {
+                            <span class="hp-bc-no-logs">No logs yet</span>
+                        }
+                    </div>
+                </a>
+            }
+        </div>
+    }
 </div>

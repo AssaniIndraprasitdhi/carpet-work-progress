@@ -104,28 +104,82 @@ public class ProgressController : Controller
         _db.ProgressLogs.Add(log);
         await _db.SaveChangesAsync();
 
-        return RedirectToAction("History", new { barcode = vm.Barcode.Trim() });
+        return RedirectToAction("WorkProgress", new { barcode = vm.Barcode.Trim() });
     }
 
     [HttpGet]
-    public async Task<IActionResult> History(string? barcode)
+    [Route("/WorkProgress/{barcode}")]
+    public async Task<IActionResult> WorkProgress(string barcode)
     {
-        var query = _db.ProgressLogs.AsQueryable();
+        if (string.IsNullOrWhiteSpace(barcode))
+            return RedirectToAction("History");
 
-        if (!string.IsNullOrWhiteSpace(barcode))
-            query = query.Where(p => p.Barcode == barcode.Trim());
+        var trimmed = barcode.Trim();
 
-        var logs = await query
+        var erp = await _db.ErpBarcodeItems
+            .FirstOrDefaultAsync(e => e.BarcodeNo == trimmed);
+
+        var logs = await _db.ProgressLogs
+            .Where(p => p.Barcode == trimmed)
             .OrderByDescending(p => p.ProgressDate)
             .ThenByDescending(p => p.CreatedAt)
             .Take(200)
             .ToListAsync();
 
-        var vm = new HistoryVm
+        var vm = new WorkProgressVm
         {
-            BarcodeFilter = barcode?.Trim(),
+            Barcode = trimmed,
+            OrderNo = erp?.Orno,
+            DesignName = erp?.DesignName,
+            OrderType = erp?.OrderType,
+            CnvId = erp?.CnvId,
+            CnvDesc = erp?.CnvDesc,
+            Width = erp?.Width,
+            Length = erp?.Length,
+            Sqm = erp?.Sqm,
+            LogCount = logs.Count,
             Logs = logs
         };
+
+        return View(vm);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> History(string? q)
+    {
+        var vm = new HistoryIndexVm { Query = q?.Trim() };
+
+        var erpQuery = _db.ErpBarcodeItems.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(vm.Query))
+        {
+            var term = vm.Query;
+            erpQuery = erpQuery.Where(e =>
+                e.Orno.Contains(term) || e.BarcodeNo.Contains(term));
+        }
+
+        vm.Items = await erpQuery
+            .Select(e => new ErpHistoryItemVm
+            {
+                Barcode = e.BarcodeNo,
+                OrderNo = e.Orno,
+                DesignName = e.DesignName,
+                OrderType = e.OrderType,
+                LogCount = _db.ProgressLogs.Count(p => p.Barcode == e.BarcodeNo),
+                LatestCreatedAt = _db.ProgressLogs
+                    .Where(p => p.Barcode == e.BarcodeNo)
+                    .Max(p => (DateTime?)p.CreatedAt),
+                LatestTotalPercent = _db.ProgressLogs
+                    .Where(p => p.Barcode == e.BarcodeNo)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Select(p => (decimal?)p.TotalPercent)
+                    .FirstOrDefault()
+            })
+            .OrderByDescending(x => x.LogCount > 0 ? 1 : 0)
+            .ThenByDescending(x => x.LatestCreatedAt)
+            .ThenByDescending(x => x.OrderNo)
+            .Take(50)
+            .ToListAsync();
 
         return View(vm);
     }

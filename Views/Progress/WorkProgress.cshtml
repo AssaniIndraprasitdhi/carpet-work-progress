@@ -1,0 +1,160 @@
+@model WorkProgressVm
+@{
+    ViewData["Title"] = "Work Progress";
+    var typeLower = Model.OrderType?.Trim().ToLowerInvariant();
+    var badgeClass = typeLower == "sample" ? "cp-erp-badge-sample" : "cp-erp-badge-order";
+    var hasErp = Model.OrderNo != null;
+
+    var groups = Model.Logs
+        .GroupBy(l => l.ProgressDate)
+        .OrderByDescending(g => g.Key)
+        .ToList();
+}
+
+<div class="wp-page">
+    <div class="wp-sticky">
+        <div class="wp-top-row">
+            <a asp-controller="Progress" asp-action="History" class="hp-back-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+                History
+            </a>
+            <div class="wp-header-info">
+                @if (hasErp)
+                {
+                    <h1 class="wp-heading">@Model.OrderNo</h1>
+                }
+                else
+                {
+                    <h1 class="wp-heading">@Model.Barcode</h1>
+                }
+            </div>
+        </div>
+        @if (hasErp)
+        {
+            <div class="wp-barcode">@Model.Barcode</div>
+        }
+    </div>
+
+    <div class="wp-content">
+        @if (hasErp)
+        {
+            <div class="wp-erp-card">
+                @if (!string.IsNullOrWhiteSpace(Model.DesignName) || !string.IsNullOrWhiteSpace(Model.OrderType))
+                {
+                    <div class="wp-erp-row">
+                        @if (!string.IsNullOrWhiteSpace(Model.DesignName))
+                        {
+                            <div class="wp-erp-item">
+                                <span class="wp-erp-label">Design</span>
+                                <span class="wp-erp-value">@Model.DesignName</span>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.OrderType))
+                        {
+                            <div class="wp-erp-item">
+                                <span class="wp-erp-label">Type</span>
+                                <span class="cp-erp-badge @badgeClass">@Model.OrderType.Trim()</span>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.CnvId) || !string.IsNullOrWhiteSpace(Model.CnvDesc))
+                {
+                    <div class="wp-erp-row">
+                        <div class="wp-erp-item">
+                            <span class="wp-erp-label">Conveyor</span>
+                            <span class="wp-erp-value">@(Model.CnvId)@(!string.IsNullOrWhiteSpace(Model.CnvDesc) ? $" — {Model.CnvDesc}" : "")</span>
+                        </div>
+                    </div>
+                }
+                @if (Model.Width.HasValue || Model.Length.HasValue || Model.Sqm.HasValue)
+                {
+                    <div class="wp-erp-row">
+                        @if (Model.Width.HasValue && Model.Length.HasValue)
+                        {
+                            <div class="wp-erp-item">
+                                <span class="wp-erp-label">Size</span>
+                                <span class="wp-erp-value">@Model.Width.Value.ToString("F2") × @Model.Length.Value.ToString("F2")</span>
+                            </div>
+                        }
+                        @if (Model.Sqm.HasValue)
+                        {
+                            <div class="wp-erp-item">
+                                <span class="wp-erp-label">Sqm</span>
+                                <span class="wp-erp-value">@Model.Sqm.Value.ToString("F2")</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (Model.Logs.Count == 0)
+        {
+            <div class="hp-empty">
+                <div class="hp-empty-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                </div>
+                <div class="hp-empty-title">No progress logs yet</div>
+                <div class="hp-empty-sub">Add a progress entry to start tracking</div>
+            </div>
+        }
+        else
+        {
+            <div class="wp-log-summary">
+                <strong>@Model.LogCount</strong> log@(Model.LogCount != 1 ? "s" : "")
+            </div>
+
+            @foreach (var group in groups)
+            {
+                <div class="hp-date-section">
+                    <div class="hp-date-header">
+                        <span class="hp-date-text">@group.Key.ToString("dd MMM yyyy")</span>
+                        <span class="hp-date-badge">@group.Count()</span>
+                    </div>
+
+                    @foreach (var log in group.OrderByDescending(l => l.CreatedAt))
+                    {
+                        <div class="hp-card">
+                            <div class="hp-card-top">
+                                <span class="hp-time">@log.CreatedAt.ToString("HH:mm")</span>
+                                <span class="hp-pill hp-pill-total">@log.TotalPercent.ToString("F1")%</span>
+                            </div>
+
+                            <div class="hp-pills">
+                                <span class="hp-pill hp-pill-normal">Normal @log.NormalPercent.ToString("F1")%</span>
+                                <span class="hp-pill hp-pill-ot">OT @log.OtPercent.ToString("F1")%</span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(log.ImagePath))
+                            {
+                                <a href="@log.ImagePath" target="_blank" class="hp-photo-btn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                                        <polyline points="21 15 16 10 5 21"/>
+                                    </svg>
+                                    View Photo
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        <div class="wp-bottom">
+            <a href="/?barcode=@Uri.EscapeDataString(Model.Barcode)" class="wp-add-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add Progress
+            </a>
+        </div>
+    </div>
+</div>
