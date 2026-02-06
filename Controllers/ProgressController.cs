@@ -145,41 +145,90 @@ public class ProgressController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> History(string? q)
+    public async Task<IActionResult> History(string? q, DateTime? from, DateTime? to, bool today = false, int page = 1)
     {
-        var vm = new HistoryIndexVm { Query = q?.Trim() };
+        const int pageSize = 50;
+        if (page < 1) page = 1;
 
-        var erpQuery = _db.ErpBarcodeItems.AsQueryable();
+        var term = q?.Trim();
 
-        if (!string.IsNullOrWhiteSpace(vm.Query))
+        DateOnly? filterFrom = null;
+        DateOnly? filterTo = null;
+
+        if (today)
         {
-            var term = vm.Query;
-            erpQuery = erpQuery.Where(e =>
-                e.Orno.Contains(term) || e.BarcodeNo.Contains(term));
+            var d = DateOnly.FromDateTime(DateTime.Today);
+            filterFrom = d;
+            filterTo = d;
+        }
+        else
+        {
+            if (from.HasValue)
+                filterFrom = DateOnly.FromDateTime(from.Value);
+            if (to.HasValue)
+                filterTo = DateOnly.FromDateTime(to.Value);
         }
 
-        vm.Items = await erpQuery
-            .Select(e => new ErpHistoryItemVm
+        var logs = _db.ProgressLogs.AsQueryable();
+
+        if (filterFrom.HasValue)
+            logs = logs.Where(p => p.ProgressDate >= filterFrom.Value);
+
+        if (filterTo.HasValue)
+            logs = logs.Where(p => p.ProgressDate <= filterTo.Value);
+
+        var erpQuery = _db.ErpBarcodeItems
+            .Where(e =>
+                _db.ProgressLogs.Any(p =>
+                    p.Barcode.Trim().ToUpper() == e.BarcodeNo.Trim().ToUpper()
+                )
+            );
+
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            var pattern = $"%{term}%";
+            erpQuery = erpQuery.Where(e =>
+                EF.Functions.ILike(e.Orno, pattern) ||
+                EF.Functions.ILike(e.BarcodeNo, pattern));
+        }
+
+        var totalCount = await erpQuery.CountAsync();
+
+        var items = await erpQuery
+            .Select(e => new ErpOpenItemVm
             {
                 Barcode = e.BarcodeNo,
                 OrderNo = e.Orno,
                 DesignName = e.DesignName,
-                OrderType = e.OrderType,
-                LogCount = _db.ProgressLogs.Count(p => p.Barcode == e.BarcodeNo),
-                LatestCreatedAt = _db.ProgressLogs
-                    .Where(p => p.Barcode == e.BarcodeNo)
+                OrderType = e.OrderType ?? "",
+                LogCount = logs.Count(p =>
+                    p.Barcode.Trim().ToUpper() == e.BarcodeNo.Trim().ToUpper()
+                ),
+                LatestCreatedAt = logs
+                    .Where(p => p.Barcode.Trim().ToUpper() == e.BarcodeNo.Trim().ToUpper())
                     .Max(p => (DateTime?)p.CreatedAt),
-                LatestTotalPercent = _db.ProgressLogs
-                    .Where(p => p.Barcode == e.BarcodeNo)
+                LatestTotalPercent = logs
+                    .Where(p => p.Barcode.Trim().ToUpper() == e.BarcodeNo.Trim().ToUpper())
                     .OrderByDescending(p => p.CreatedAt)
                     .Select(p => (decimal?)p.TotalPercent)
                     .FirstOrDefault()
             })
-            .OrderByDescending(x => x.LogCount > 0 ? 1 : 0)
-            .ThenByDescending(x => x.LatestCreatedAt)
-            .ThenByDescending(x => x.OrderNo)
-            .Take(50)
+            .OrderByDescending(x => x.LatestCreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
+
+        var vm = new HistoryOpenVm
+        {
+            Q = term,
+            From = from,
+            To = to,
+            Today = today,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            Items = items
+        };
 
         return View(vm);
     }

@@ -21,49 +21,45 @@
         </div>
     }
 
-    <div class="cp-preview-wrap mb-3">
-        <img src="@Model.ImagePath" class="cp-preview-img" alt="Carpet photo" />
+    <div class="cp-confirm-photo">
+        <img src="@Model.ImagePath" alt="Carpet photo" />
     </div>
 
-    <div class="cp-kv mb-3">
+    <div class="cp-confirm-barcode">
         <span class="cp-kv-label">Barcode</span>
         <span class="cp-kv-value">@Model.Barcode</span>
     </div>
 
-    <hr class="cp-divider" />
-
-    <form asp-controller="Progress" asp-action="Confirm" method="post">
+    <form id="confirmForm" asp-controller="Progress" asp-action="Confirm" method="post">
         <input type="hidden" name="Barcode" value="@Model.Barcode" />
         <input type="hidden" name="ImagePath" value="@Model.ImagePath" />
 
-        <div class="mb-3">
+        <div class="cp-field">
             <label for="progressDate" class="cp-label">Work Date</label>
             <input type="date" name="ProgressDate" id="progressDate" class="cp-input" value="@Model.ProgressDate.ToString("yyyy-MM-dd")" />
         </div>
 
-        <div class="mb-3">
+        <div class="cp-field">
             <label for="normalPct" class="cp-label">Normal % (black marker)</label>
             <input type="number" name="NormalPercent" id="normalPct" class="cp-input" step="0.01" min="0" max="100" value="@Model.NormalPercent" />
         </div>
 
-        <div class="mb-3">
+        <div class="cp-field">
             <label for="otPct" class="cp-label">OT % (red marker)</label>
             <input type="number" name="OtPercent" id="otPct" class="cp-input" step="0.01" min="0" max="100" value="@Model.OtPercent" />
         </div>
 
-        <div class="mb-3">
+        <div class="cp-field">
             <label for="totalPct" class="cp-label">Total %</label>
             <input type="number" name="TotalPercent" id="totalPct" class="cp-input cp-input-locked" step="0.01" value="@Model.TotalPercent" readonly />
         </div>
-
-        <button type="submit" class="cp-submit">Confirm &amp; Save</button>
     </form>
 
-    <hr class="cp-divider" />
+    <a asp-controller="Home" asp-action="Index" class="cp-ghost-link">Back to Scan</a>
+</div>
 
-    <div style="text-align:center;">
-        <a asp-controller="Home" asp-action="Index" class="cp-link-detail">Back to Scan</a>
-    </div>
+<div class="cp-action-bar">
+    <button type="submit" form="confirmForm" class="cp-submit cp-submit-success">Confirm &amp; Save</button>
 </div>
 
 @section Scripts {

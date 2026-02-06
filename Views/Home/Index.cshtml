@@ -23,7 +23,7 @@
 
     <form id="analyzeForm" asp-controller="Progress" asp-action="Analyze" method="post" enctype="multipart/form-data">
 
-        <div class="mb-3">
+        <div class="cp-field">
             <label class="cp-label">Barcode</label>
             <div class="cp-barcode-row">
                 <input name="Barcode" class="cp-input" id="barcodeInput" placeholder="Scan or type barcode" inputmode="text" autocomplete="off" />
@@ -495,5 +495,14 @@
         barcodeInput.addEventListener('input', function () {
             barcodeError.classList.add('d-none');
         });
+
+        (function () {
+            var params = new URLSearchParams(window.location.search);
+            var bc = params.get('barcode');
+            if (bc && bc.trim()) {
+                barcodeInput.value = bc.trim();
+                lookupBarcode();
+            }
+        })();
     </script>
 }

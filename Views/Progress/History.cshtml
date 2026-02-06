@@ -1,18 +1,64 @@
-@model HistoryIndexVm
+@model HistoryOpenVm
 @{
     ViewData["Title"] = "History";
+
+    var hasFilter = !string.IsNullOrWhiteSpace(Model.Q)
+        || Model.From.HasValue
+        || Model.To.HasValue
+        || Model.Today;
+
+    var totalPages = Model.PageSize > 0
+        ? (int)Math.Ceiling((double)Model.TotalCount / Model.PageSize)
+        : 1;
+    var hasPrev = Model.Page > 1;
+    var hasNext = Model.Page < totalPages;
+
+    var rangeStart = (Model.Page - 1) * Model.PageSize + 1;
+    var rangeEnd = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+
+    string BuildPageUrl(int p)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Model.Q))
+            parts.Add($"q={Uri.EscapeDataString(Model.Q)}");
+        if (Model.From.HasValue)
+            parts.Add($"from={Model.From.Value:yyyy-MM-dd}");
+        if (Model.To.HasValue)
+            parts.Add($"to={Model.To.Value:yyyy-MM-dd}");
+        if (Model.Today)
+            parts.Add("today=true");
+        if (p > 1)
+            parts.Add($"page={p}");
+        return "/Progress/History" + (parts.Count > 0 ? "?" + string.Join("&", parts) : "");
+    }
 }
 
 <div class="history-page">
     <div class="hp-index-header">
-        <h1 class="hp-heading">Progress History</h1>
+        <h1 class="hp-heading">History</h1>
 
         <form method="get" asp-controller="Progress" asp-action="History" class="hp-filter">
             <div class="hp-filter-row">
-                <input type="text" name="q" value="@Model.Query"
+                <input type="text" name="q" value="@Model.Q"
                        class="cp-input hp-filter-input" placeholder="Search order no or barcode..." />
-                <button type="submit" class="hp-filter-btn">Go</button>
-                @if (!string.IsNullOrWhiteSpace(Model.Query))
+                <button type="submit" class="hp-filter-btn">Apply</button>
+            </div>
+            <div class="hp-filter-dates">
+                <div class="hp-date-field">
+                    <label class="cp-label">From</label>
+                    <input type="date" name="from" value="@(Model.From?.ToString("yyyy-MM-dd"))" class="cp-input" />
+                </div>
+                <div class="hp-date-field">
+                    <label class="cp-label">To</label>
+                    <input type="date" name="to" value="@(Model.To?.ToString("yyyy-MM-dd"))" class="cp-input" />
+                </div>
+            </div>
+            <div class="hp-filter-options">
+                <label class="hp-today-toggle">
+                    <input type="checkbox" name="today" value="true" @(Model.Today ? "checked" : "") />
+                    <span>Today only</span>
+                </label>
+                @if (hasFilter)
                 {
                     <a asp-controller="Progress" asp-action="History" class="hp-clear-btn">Clear</a>
                 }
@@ -23,7 +69,7 @@
     @if (Model.Items.Count == 0)
     {
         <div class="hp-empty">
-            @if (!string.IsNullOrWhiteSpace(Model.Query))
+            @if (hasFilter)
             {
                 <div class="hp-empty-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -31,65 +77,118 @@
                         <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                     </svg>
                 </div>
-                <div class="hp-empty-title">No results</div>
-                <div class="hp-empty-sub">Nothing matches <strong>@Model.Query</strong></div>
+                <div class="hp-empty-title">No items found</div>
+                <div class="hp-empty-sub">Try adjusting your filters</div>
             }
             else
             {
                 <div class="hp-empty-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"/>
-                        <rect x="14" y="3" width="7" height="7"/>
-                        <rect x="14" y="14" width="7" height="7"/>
-                        <rect x="3" y="14" width="7" height="7"/>
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                     </svg>
                 </div>
-                <div class="hp-empty-title">No ERP items found</div>
-                <div class="hp-empty-sub">Sync barcode data from ERP to get started</div>
+                <div class="hp-empty-title">No progress logs yet</div>
+                <div class="hp-empty-sub">Add progress entries from the Scan page to see them here</div>
             }
         </div>
     }
     else
     {
         <div class="hp-summary">
-            <strong>@Model.Items.Count</strong> item@(Model.Items.Count != 1 ? "s" : "")@(!string.IsNullOrWhiteSpace(Model.Query) ? $" matching \"{Model.Query}\"" : "")
+            Showing <strong>@rangeStart&ndash;@rangeEnd</strong> of <strong>@Model.TotalCount</strong> item@(Model.TotalCount != 1 ? "s" : "")
         </div>
 
-        <div class="hp-barcode-list">
+        <div class="ho-list">
             @foreach (var item in Model.Items)
             {
-                var typeLower = item.OrderType?.Trim().ToLowerInvariant();
+                var typeLower = item.OrderType.Trim().ToLowerInvariant();
                 var badgeClass = typeLower == "sample" ? "cp-erp-badge-sample" : "cp-erp-badge-order";
 
-                <a href="/WorkProgress/@Uri.EscapeDataString(item.Barcode)" class="hp-bc-card">
-                    <div class="hp-bc-top">
-                        <div class="hp-bc-primary">
-                            <span class="hp-bc-order">@item.OrderNo</span>
+                <div class="ho-card">
+                    <div class="ho-top">
+                        <div class="ho-primary">
+                            <span class="ho-order">@(!string.IsNullOrWhiteSpace(item.OrderNo) ? item.OrderNo : item.Barcode)</span>
                             @if (!string.IsNullOrWhiteSpace(item.DesignName))
                             {
-                                <span class="hp-bc-design">@item.DesignName</span>
+                                <span class="ho-design">@item.DesignName</span>
                             }
                         </div>
-                        @if (!string.IsNullOrWhiteSpace(item.OrderType))
+                        <div class="ho-chips">
+                            @if (item.LatestTotalPercent.HasValue)
+                            {
+                                <span class="hp-pill hp-pill-total">@item.LatestTotalPercent.Value.ToString("F1")%</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.OrderType))
+                            {
+                                <span class="cp-erp-badge @badgeClass">@item.OrderType.Trim()</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="ho-sub">
+                        <span class="ho-barcode">@item.Barcode</span>
+                        <span class="ho-dot">&middot;</span>
+                        <span>@item.LogCount log@(item.LogCount != 1 ? "s" : "")</span>
+                        @if (item.LatestCreatedAt.HasValue)
                         {
-                            <span class="cp-erp-badge @badgeClass">@item.OrderType.Trim()</span>
+                            <span class="ho-dot">&middot;</span>
+                            <span>@item.LatestCreatedAt.Value.ToString("dd MMM HH:mm")</span>
                         }
                     </div>
-                    <div class="hp-bc-barcode">@item.Barcode</div>
-                    <div class="hp-bc-meta">
-                        @if (item.LogCount > 0)
-                        {
-                            <span>@item.LogCount log@(item.LogCount != 1 ? "s" : "")</span>
-                            <span class="hp-pill hp-pill-total">@item.LatestTotalPercent!.Value.ToString("F1")%</span>
-                            <span>@item.LatestCreatedAt!.Value.ToString("dd MMM HH:mm")</span>
-                        }
-                        else
-                        {
-                            <span class="hp-bc-no-logs">No logs yet</span>
-                        }
+
+                    <div class="ho-footer">
+                        <a href="/?barcode=@Uri.EscapeDataString(item.Barcode)" class="ho-open-btn">
+                            Open
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </a>
                     </div>
-                </a>
+                </div>
             }
         </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="hp-pagination">
+                @if (hasPrev)
+                {
+                    <a href="@BuildPageUrl(Model.Page - 1)" class="hp-page-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                        Prev
+                    </a>
+                }
+                else
+                {
+                    <span class="hp-page-btn hp-page-btn-disabled">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                        Prev
+                    </span>
+                }
+                <span class="hp-page-info">Page @Model.Page of @totalPages</span>
+                @if (hasNext)
+                {
+                    <a href="@BuildPageUrl(Model.Page + 1)" class="hp-page-btn">
+                        Next
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </a>
+                }
+                else
+                {
+                    <span class="hp-page-btn hp-page-btn-disabled">
+                        Next
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </span>
+                }
+            </div>
+        }
     }
 </div>
