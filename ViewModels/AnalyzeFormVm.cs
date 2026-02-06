@@ -8,6 +8,6 @@ public class AnalyzeFormVm
     [MaxLength(50)]
     public string Barcode { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Please upload a photo.")]
+    [Required(ErrorMessage = "Please capture a photo.")]
     public IFormFile? Image { get; set; }
 }

@@ -22,6 +22,9 @@ public class ProgressController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Analyze(AnalyzeFormVm vm)
     {
+        if (vm.Image is null || vm.Image.Length == 0)
+            ModelState.AddModelError("Image", "Please capture a photo.");
+
         if (!ModelState.IsValid)
             return View("~/Views/Home/Index.cshtml", vm);
 
@@ -41,6 +44,7 @@ public class ProgressController : Controller
         }
 
         var uploadDir = Environment.GetEnvironmentVariable("UPLOAD_DIR") ?? "wwwroot/uploads";
+        Directory.CreateDirectory(uploadDir);
         var fileName = $"{Guid.NewGuid()}{ext}";
         var filePath = Path.Combine(uploadDir, fileName);
 
@@ -78,6 +82,9 @@ public class ProgressController : Controller
     public async Task<IActionResult> Confirm(ConfirmProgressVm vm)
     {
         vm.TotalPercent = Math.Round(vm.NormalPercent + vm.OtPercent, 2);
+
+        if (vm.TotalPercent > 100)
+            ModelState.AddModelError("TotalPercent", "Total cannot exceed 100%.");
 
         if (!ModelState.IsValid)
             return View("Analyze", vm);

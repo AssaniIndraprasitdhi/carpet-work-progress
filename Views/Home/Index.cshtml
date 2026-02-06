@@ -5,9 +5,8 @@
 
 <div class="cp-card">
     <h1 class="cp-title">Scan Carpet Progress</h1>
-    <p class="cp-subtitle">Scan barcode and capture progress photo.</p>
 
-    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Any(m => m.Value!.Errors.Count > 0))
+    @if (ViewData.ModelState.ErrorCount > 0)
     {
         <div class="cp-error">
             <ul class="mb-0 ps-3">
@@ -25,76 +24,343 @@
     <form id="analyzeForm" asp-controller="Progress" asp-action="Analyze" method="post" enctype="multipart/form-data">
 
         <div class="mb-3">
-            <label asp-for="Barcode" class="cp-label">Barcode</label>
-            <input asp-for="Barcode" class="cp-input" id="barcodeInput" placeholder="Scan or type barcode" inputmode="text" autocomplete="off" />
+            <label class="cp-label">Barcode</label>
+            <div id="barcodeRow" class="cp-barcode-row">
+                <input name="Barcode" class="cp-input" id="barcodeInput" placeholder="Scan or type barcode" inputmode="text" autocomplete="off" />
+                <button type="button" id="lookupBtn" class="cp-lookup-btn">Lookup</button>
+            </div>
+            <div id="barcodeError" class="cp-barcode-error d-none">Barcode not found in ERP</div>
+            <div id="confirmedBar" class="cp-confirmed-bar d-none">
+                <span class="cp-confirmed-badge">ERP Confirmed</span>
+                <a href="#" id="changeLink" class="cp-change-link">Change barcode</a>
+            </div>
         </div>
 
         <hr class="cp-divider" />
 
-        <input asp-for="Image" type="file" class="cp-file-input" id="fileInput" accept="image/*" capture="environment" />
+        <input type="file" name="Image" class="cp-file-input" id="fileInput" accept="image/*" />
 
-        <div id="cameraArea" class="mb-3">
-            <button type="button" id="cameraBtn" class="cp-camera-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                </svg>
-                Take Photo
-            </button>
+        <div id="placeholderArea" class="cp-placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Look up a barcode to scan photo</span>
         </div>
 
-        <div id="previewArea" class="mb-3 d-none">
-            <div class="cp-preview-wrap">
-                <img id="previewImg" class="cp-preview-img" alt="Captured photo" />
-                <button type="button" id="retakeBtn" class="cp-retake">Retake</button>
+        <div id="resultArea" class="d-none">
+            <div id="previewArea" class="mb-3">
+                <div class="cp-preview-wrap">
+                    <img id="previewImg" class="cp-preview-img" alt="Captured photo" />
+                    <button type="button" id="retakeBtn" class="cp-retake">Retake</button>
+                </div>
             </div>
+            <div id="photoStatus" class="cp-photo-status cp-photo-status-ok">Photo captured</div>
+            <button type="submit" id="analyzeBtn" class="cp-submit" disabled>Analyze</button>
         </div>
 
-        <button type="submit" id="analyzeBtn" class="cp-submit" disabled>Analyze</button>
+        <div id="photoStatusEmpty" class="cp-photo-status cp-photo-status-none">No photo</div>
 
     </form>
 </div>
+
+<div class="modal fade" id="erpModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content cp-modal">
+            <div id="erpModalHeader" class="cp-modal-head"></div>
+            <div class="modal-body cp-modal-body" id="erpModalBody"></div>
+            <div class="cp-modal-foot">
+                <button type="button" id="scanPhotoBtn" class="cp-scan-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                    Scan Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="camModal" class="cp-cam d-none">
+    <video id="camVideo" class="cp-cam-video" autoplay playsinline></video>
+    <div class="cp-cam-overlay">
+        <div class="cp-cam-hint">Align carpet inside the frame</div>
+        <div id="camFrame" class="cp-cam-frame"></div>
+    </div>
+    <div class="cp-cam-controls">
+        <button type="button" id="camCapture" class="cp-cam-capture"></button>
+    </div>
+    <button type="button" id="camClose" class="cp-cam-close">&times;</button>
+</div>
+
+<canvas id="camCanvas" class="d-none"></canvas>
 
 @section Scripts {
     <script>
         var fileInput = document.getElementById('fileInput');
         var barcodeInput = document.getElementById('barcodeInput');
-        var cameraBtn = document.getElementById('cameraBtn');
-        var cameraArea = document.getElementById('cameraArea');
-        var previewArea = document.getElementById('previewArea');
+        var lookupBtn = document.getElementById('lookupBtn');
+        var analyzeBtn = document.getElementById('analyzeBtn');
+        var barcodeError = document.getElementById('barcodeError');
+        var confirmedBar = document.getElementById('confirmedBar');
+        var changeLink = document.getElementById('changeLink');
+        var placeholderArea = document.getElementById('placeholderArea');
+        var resultArea = document.getElementById('resultArea');
         var previewImg = document.getElementById('previewImg');
         var retakeBtn = document.getElementById('retakeBtn');
-        var analyzeBtn = document.getElementById('analyzeBtn');
+        var photoStatus = document.getElementById('photoStatus');
+        var photoStatusEmpty = document.getElementById('photoStatusEmpty');
+        var erpModalHeader = document.getElementById('erpModalHeader');
+        var erpModalBody = document.getElementById('erpModalBody');
+        var erpModalEl = document.getElementById('erpModal');
+        var erpModal = new bootstrap.Modal(erpModalEl);
+        var scanPhotoBtn = document.getElementById('scanPhotoBtn');
+        var camModal = document.getElementById('camModal');
+        var camVideo = document.getElementById('camVideo');
+        var camCapture = document.getElementById('camCapture');
+        var camClose = document.getElementById('camClose');
+        var camFrame = document.getElementById('camFrame');
+        var camCanvas = document.getElementById('camCanvas');
         var objectUrl = null;
+        var erpConfirmed = false;
+        var camStream = null;
 
         function updateBtn() {
-            analyzeBtn.disabled = !(barcodeInput.value.trim() && fileInput.files.length > 0);
+            analyzeBtn.disabled = !(erpConfirmed && barcodeInput.value.trim() && fileInput.files.length > 0);
         }
 
-        function showPreview() {
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-            if (fileInput.files.length > 0) {
-                objectUrl = URL.createObjectURL(fileInput.files[0]);
-                previewImg.src = objectUrl;
-                cameraArea.classList.add('d-none');
-                previewArea.classList.remove('d-none');
-            }
+        function showCapturedState() {
+            placeholderArea.classList.add('d-none');
+            resultArea.classList.remove('d-none');
+            photoStatusEmpty.classList.add('d-none');
+            photoStatus.classList.remove('d-none');
+            erpConfirmed = true;
+            barcodeInput.readOnly = true;
+            barcodeInput.classList.add('cp-input-locked');
+            lookupBtn.classList.add('d-none');
+            confirmedBar.classList.remove('d-none');
             updateBtn();
         }
 
-        function clearAndRetake() {
+        function resetAll() {
+            erpConfirmed = false;
+            barcodeInput.readOnly = false;
+            barcodeInput.classList.remove('cp-input-locked');
+            barcodeInput.value = '';
+            lookupBtn.classList.remove('d-none');
+            confirmedBar.classList.add('d-none');
+            barcodeError.classList.add('d-none');
+            resultArea.classList.add('d-none');
+            placeholderArea.classList.remove('d-none');
+            photoStatusEmpty.classList.remove('d-none');
+            photoStatus.classList.add('d-none');
             if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
-            fileInput.value = '';
+            clearFileInput();
             previewImg.src = '';
-            previewArea.classList.add('d-none');
-            cameraArea.classList.remove('d-none');
             updateBtn();
-            fileInput.click();
+            barcodeInput.focus();
         }
 
-        cameraBtn.addEventListener('click', function () { fileInput.click(); });
-        fileInput.addEventListener('change', showPreview);
-        retakeBtn.addEventListener('click', clearAndRetake);
-        barcodeInput.addEventListener('input', updateBtn);
+        function clearFileInput() {
+            var dt = new DataTransfer();
+            fileInput.files = dt.files;
+        }
+
+        function assignFileToInput(blob) {
+            var file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+        }
+
+        function openCamera() {
+            erpModal.hide();
+            camModal.classList.remove('d-none');
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+                audio: false
+            }).then(function (stream) {
+                camStream = stream;
+                camVideo.srcObject = stream;
+            }).catch(function () {
+                camModal.classList.add('d-none');
+                fileInput.setAttribute('capture', 'environment');
+                fileInput.click();
+            });
+        }
+
+        function closeCamera() {
+            camModal.classList.add('d-none');
+            if (camStream) {
+                camStream.getTracks().forEach(function (t) { t.stop(); });
+                camStream = null;
+            }
+            camVideo.srcObject = null;
+        }
+
+        function captureFrame() {
+            var vw = camVideo.videoWidth;
+            var vh = camVideo.videoHeight;
+            if (!vw || !vh) return;
+
+            var frameEl = camFrame;
+            var frameRect = frameEl.getBoundingClientRect();
+            var videoRect = camVideo.getBoundingClientRect();
+
+            var scaleX = vw / videoRect.width;
+            var scaleY = vh / videoRect.height;
+
+            var coverScale = Math.max(videoRect.width / vw, videoRect.height / vh);
+            var renderedW = vw * coverScale;
+            var renderedH = vh * coverScale;
+            var offsetX = (renderedW - videoRect.width) / 2;
+            var offsetY = (renderedH - videoRect.height) / 2;
+
+            var cropX = (frameRect.left - videoRect.left + offsetX) / coverScale;
+            var cropY = (frameRect.top - videoRect.top + offsetY) / coverScale;
+            var cropW = frameRect.width / coverScale;
+            var cropH = frameRect.height / coverScale;
+
+            cropX = Math.max(0, Math.round(cropX));
+            cropY = Math.max(0, Math.round(cropY));
+            cropW = Math.min(Math.round(cropW), vw - cropX);
+            cropH = Math.min(Math.round(cropH), vh - cropY);
+
+            camCanvas.width = cropW;
+            camCanvas.height = cropH;
+            var ctx = camCanvas.getContext('2d');
+            ctx.drawImage(camVideo, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+            camCanvas.toBlob(function (blob) {
+                if (!blob) return;
+                closeCamera();
+                assignFileToInput(blob);
+                if (objectUrl) URL.revokeObjectURL(objectUrl);
+                objectUrl = URL.createObjectURL(blob);
+                previewImg.src = objectUrl;
+                showCapturedState();
+            }, 'image/jpeg', 0.92);
+        }
+
+        function fmtDate(val) {
+            if (!val) return '-';
+            var d = new Date(val);
+            if (isNaN(d)) return val;
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function fmtNum(val) {
+            if (val === null || val === undefined) return '-';
+            return parseFloat(val).toFixed(2);
+        }
+
+        function v(val) {
+            return (val !== null && val !== undefined && val !== '') ? val : '-';
+        }
+
+        function buildModal(item) {
+            erpModalHeader.innerHTML =
+                '<div class="cp-modal-barcode">' + v(item.barcodeNo) + '</div>' +
+                '<div class="cp-modal-orno">Order: ' + v(item.orno) + '</div>';
+
+            var html =
+                '<div class="cp-kv-grid">' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Design</span><span class="cp-kv-value">' + v(item.designName) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Type</span><span class="cp-kv-value">' + v(item.orderType) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Cnv ID</span><span class="cp-kv-value">' + v(item.cnvId) + '</span></div>' +
+                    '<div class="cp-kv"><span class="cp-kv-label">Cnv Desc</span><span class="cp-kv-value">' + v(item.cnvDesc) + '</span></div>' +
+                '</div>' +
+                '<div class="cp-detail-toggle">' +
+                    '<a data-bs-toggle="collapse" href="#moreDetails" role="button" aria-expanded="false" aria-controls="moreDetails" class="cp-detail-link">' +
+                        'More details <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>' +
+                    '</a>' +
+                '</div>' +
+                '<div class="collapse" id="moreDetails">' +
+                    '<div class="cp-detail-grid">' +
+                        '<div class="cp-kv-sm"><span class="cp-kv-label">As Plan</span><span>' + v(item.asPlan) + '</span></div>' +
+                        '<div class="cp-kv-sm"><span class="cp-kv-label">List No</span><span>' + v(item.listNo) + '</span></div>' +
+                        '<div class="cp-kv-sm"><span class="cp-kv-label">Item No</span><span>' + v(item.itemNo) + '</span></div>' +
+                        '<div class="cp-kv-sm"><span class="cp-kv-label">Width</span><span>' + fmtNum(item.width) + '</span></div>' +
+                        '<div class="cp-kv-sm"><span class="cp-kv-label">Length</span><span>' + fmtNum(item.length) + '</span></div>' +
+                        '<div class="cp-kv-sm"><span class="cp-kv-label">SQM</span><span>' + fmtNum(item.sqm) + '</span></div>' +
+                        '<div class="cp-kv-sm"><span class="cp-kv-label">Qty</span><span>' + fmtNum(item.qty) + '</span></div>' +
+                        '<div class="cp-kv-sm"><span class="cp-kv-label">Synced</span><span>' + fmtDate(item.syncedAt) + '</span></div>' +
+                    '</div>' +
+                '</div>';
+
+            erpModalBody.innerHTML = html;
+        }
+
+        function lookupBarcode() {
+            var code = barcodeInput.value.trim();
+            if (!code) return;
+            barcodeError.classList.add('d-none');
+            lookupBtn.disabled = true;
+            lookupBtn.textContent = '...';
+
+            fetch('/api/erp-items/' + encodeURIComponent(code))
+                .then(function (res) {
+                    if (res.ok) return res.json();
+                    return null;
+                })
+                .then(function (data) {
+                    lookupBtn.disabled = false;
+                    lookupBtn.textContent = 'Lookup';
+                    if (!data) {
+                        barcodeError.classList.remove('d-none');
+                        return;
+                    }
+                    buildModal(data);
+                    erpModal.show();
+                });
+        }
+
+        scanPhotoBtn.addEventListener('click', openCamera);
+
+        fileInput.addEventListener('change', function () {
+            if (!fileInput.files.length) return;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            objectUrl = URL.createObjectURL(fileInput.files[0]);
+            previewImg.src = objectUrl;
+            showCapturedState();
+        });
+
+        camCapture.addEventListener('click', captureFrame);
+
+        camClose.addEventListener('click', function () {
+            closeCamera();
+            erpModal.show();
+        });
+
+        retakeBtn.addEventListener('click', function () {
+            if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+            clearFileInput();
+            previewImg.src = '';
+            resultArea.classList.add('d-none');
+            photoStatus.classList.add('d-none');
+            photoStatusEmpty.classList.remove('d-none');
+            placeholderArea.classList.remove('d-none');
+            updateBtn();
+            openCamera();
+        });
+
+        changeLink.addEventListener('click', function (e) {
+            e.preventDefault();
+            resetAll();
+        });
+
+        lookupBtn.addEventListener('click', lookupBarcode);
+
+        barcodeInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                lookupBarcode();
+            }
+        });
+
+        barcodeInput.addEventListener('input', function () {
+            barcodeError.classList.add('d-none');
+        });
     </script>
 }

@@ -1,62 +1,80 @@
 @model HistoryVm
 @{
-    ViewData["Title"] = "Progress History";
+    ViewData["Title"] = "History";
 }
 
-<div class="mt-4">
-    <h2>Progress History</h2>
+<div class="cp-tl">
+    <h1 class="cp-title">Progress History</h1>
 
-    <form method="get" asp-controller="Progress" asp-action="History" class="row g-2 mb-4">
-        <div class="col-auto">
-            <input type="text" name="barcode" value="@Model.BarcodeFilter" class="form-control" placeholder="Filter by barcode" />
-        </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-outline-primary">Filter</button>
-        </div>
+    <form method="get" asp-controller="Progress" asp-action="History" class="cp-tl-filter">
+        <input type="text" name="barcode" value="@Model.BarcodeFilter" class="cp-input" placeholder="Filter by barcode" />
+        <button type="submit" class="cp-tl-filter-btn">Filter</button>
         @if (!string.IsNullOrWhiteSpace(Model.BarcodeFilter))
         {
-            <div class="col-auto">
-                <a asp-controller="Progress" asp-action="History" class="btn btn-outline-secondary">Clear</a>
-            </div>
+            <a asp-controller="Progress" asp-action="History" class="cp-tl-clear">Clear</a>
         }
     </form>
 
     @if (Model.Logs.Count == 0)
     {
-        <div class="alert alert-info">No records found.</div>
+        <div class="cp-tl-empty">No records found.</div>
     }
     else
     {
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Date</th>
-                        <th>Barcode</th>
-                        <th>Normal %</th>
-                        <th>OT %</th>
-                        <th>Total %</th>
-                        <th>Saved At</th>
-                        <th>Photo</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var log in Model.Logs)
+        string? currentDate = null;
+        @foreach (var log in Model.Logs)
+        {
+            var dateStr = log.ProgressDate.ToString("yyyy-MM-dd");
+            if (dateStr != currentDate)
+            {
+                currentDate = dateStr;
+                <div class="cp-tl-date">@log.ProgressDate.ToString("dd MMM yyyy")</div>
+            }
+            <div class="cp-tl-entry">
+                <div class="cp-tl-rail">
+                    <div class="cp-tl-dot"></div>
+                    <div class="cp-tl-line"></div>
+                </div>
+                <div class="cp-tl-body">
+                    <div class="cp-tl-time">@log.CreatedAt.ToString("HH:mm")</div>
+                    @if (string.IsNullOrWhiteSpace(Model.BarcodeFilter))
                     {
-                        <tr>
-                            <td>@log.ProgressDate.ToString("yyyy-MM-dd")</td>
-                            <td>@log.Barcode</td>
-                            <td>@log.NormalPercent.ToString("F2")</td>
-                            <td>@log.OtPercent.ToString("F2")</td>
-                            <td><strong>@log.TotalPercent.ToString("F2")</strong></td>
-                            <td>@log.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
-                            <td><a href="@log.ImagePath" target="_blank">View</a></td>
-                        </tr>
+                        <div class="cp-tl-barcode">@log.Barcode</div>
                     }
-                </tbody>
-            </table>
-        </div>
+                    <div class="cp-tl-stats">
+                        <div class="cp-tl-stat">
+                            <span class="cp-tl-stat-label">Normal</span>
+                            <span class="cp-tl-stat-value">@log.NormalPercent.ToString("F2")%</span>
+                        </div>
+                        <div class="cp-tl-stat">
+                            <span class="cp-tl-stat-label">OT</span>
+                            <span class="cp-tl-stat-value">@log.OtPercent.ToString("F2")%</span>
+                        </div>
+                        <div class="cp-tl-stat cp-tl-stat-total">
+                            <span class="cp-tl-stat-label">Total</span>
+                            <span class="cp-tl-stat-value">@log.TotalPercent.ToString("F2")%</span>
+                        </div>
+                    </div>
+                    <a href="@log.ImagePath" target="_blank" class="cp-tl-photo">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        View photo
+                    </a>
+                </div>
+            </div>
+        }
     }
 
-    <a asp-controller="Home" asp-action="Index" class="btn btn-primary mt-2">New Upload</a>
+    <div class="cp-tl-bottom">
+        <a asp-controller="Home" asp-action="Index" class="cp-scan-btn" style="display:inline-flex;width:auto;padding:0.7rem 1.5rem;font-size:0.92rem;border-radius:10px;text-decoration:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New Scan
+        </a>
+    </div>
 </div>

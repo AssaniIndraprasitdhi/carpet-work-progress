@@ -1,62 +1,82 @@
 @model ConfirmProgressVm
 @{
-    ViewData["Title"] = "Review Progress";
+    ViewData["Title"] = "Review";
 }
 
-<div class="row justify-content-center mt-4">
-    <div class="col-md-8">
-        <h2>Review Progress — @Model.Barcode</h2>
+<div class="cp-card">
+    <h1 class="cp-title">Review Progress</h1>
 
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <img src="@Model.ImagePath" alt="Carpet photo" class="img-fluid rounded border" />
-            </div>
-            <div class="col-md-6">
-                <div asp-validation-summary="All" class="text-danger mb-3"></div>
+    @if (ViewData.ModelState.ErrorCount > 0)
+    {
+        <div class="cp-error">
+            <ul class="mb-0 ps-3">
+                @foreach (var entry in ViewData.ModelState.Values)
+                {
+                    @foreach (var err in entry.Errors)
+                    {
+                        <li>@err.ErrorMessage</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
 
-                <form asp-controller="Progress" asp-action="Confirm" method="post">
-                    <input type="hidden" asp-for="Barcode" />
-                    <input type="hidden" asp-for="ImagePath" />
+    <div class="cp-preview-wrap mb-3">
+        <img src="@Model.ImagePath" class="cp-preview-img" alt="Carpet photo" />
+    </div>
 
-                    <div class="mb-3">
-                        <label asp-for="ProgressDate" class="form-label">Work Date</label>
-                        <input asp-for="ProgressDate" type="date" class="form-control" />
-                    </div>
+    <div class="cp-kv mb-3">
+        <span class="cp-kv-label">Barcode</span>
+        <span class="cp-kv-value">@Model.Barcode</span>
+    </div>
 
-                    <div class="mb-3">
-                        <label asp-for="NormalPercent" class="form-label">Normal % (black marker)</label>
-                        <input asp-for="NormalPercent" type="number" step="0.01" min="0" max="100" class="form-control" id="normalPct" />
-                        <span asp-validation-for="NormalPercent" class="text-danger"></span>
-                    </div>
+    <hr class="cp-divider" />
 
-                    <div class="mb-3">
-                        <label asp-for="OtPercent" class="form-label">OT % (red marker)</label>
-                        <input asp-for="OtPercent" type="number" step="0.01" min="0" max="100" class="form-control" id="otPct" />
-                        <span asp-validation-for="OtPercent" class="text-danger"></span>
-                    </div>
+    <form asp-controller="Progress" asp-action="Confirm" method="post">
+        <input type="hidden" name="Barcode" value="@Model.Barcode" />
+        <input type="hidden" name="ImagePath" value="@Model.ImagePath" />
 
-                    <div class="mb-3">
-                        <label asp-for="TotalPercent" class="form-label">Total %</label>
-                        <input asp-for="TotalPercent" type="number" step="0.01" class="form-control" id="totalPct" readonly />
-                    </div>
-
-                    <button type="submit" class="btn btn-success w-100">Confirm &amp; Save</button>
-                </form>
-            </div>
+        <div class="mb-3">
+            <label for="progressDate" class="cp-label">Work Date</label>
+            <input type="date" name="ProgressDate" id="progressDate" class="cp-input" value="@Model.ProgressDate.ToString("yyyy-MM-dd")" />
         </div>
 
-        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Back to Upload</a>
+        <div class="mb-3">
+            <label for="normalPct" class="cp-label">Normal % (black marker)</label>
+            <input type="number" name="NormalPercent" id="normalPct" class="cp-input" step="0.01" min="0" max="100" value="@Model.NormalPercent" />
+        </div>
+
+        <div class="mb-3">
+            <label for="otPct" class="cp-label">OT % (red marker)</label>
+            <input type="number" name="OtPercent" id="otPct" class="cp-input" step="0.01" min="0" max="100" value="@Model.OtPercent" />
+        </div>
+
+        <div class="mb-3">
+            <label for="totalPct" class="cp-label">Total %</label>
+            <input type="number" name="TotalPercent" id="totalPct" class="cp-input cp-input-locked" step="0.01" value="@Model.TotalPercent" readonly />
+        </div>
+
+        <button type="submit" class="cp-submit">Confirm &amp; Save</button>
+    </form>
+
+    <hr class="cp-divider" />
+
+    <div style="text-align:center;">
+        <a asp-controller="Home" asp-action="Index" class="cp-change-link">Back to Scan</a>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        document.getElementById('normalPct').addEventListener('input', recalc);
-        document.getElementById('otPct').addEventListener('input', recalc);
+        var normalEl = document.getElementById('normalPct');
+        var otEl = document.getElementById('otPct');
+        var totalEl = document.getElementById('totalPct');
         function recalc() {
-            var n = parseFloat(document.getElementById('normalPct').value) || 0;
-            var o = parseFloat(document.getElementById('otPct').value) || 0;
-            document.getElementById('totalPct').value = (n + o).toFixed(2);
+            var n = parseFloat(normalEl.value) || 0;
+            var o = parseFloat(otEl.value) || 0;
+            totalEl.value = (n + o).toFixed(2);
         }
+        normalEl.addEventListener('input', recalc);
+        otEl.addEventListener('input', recalc);
     </script>
 }
